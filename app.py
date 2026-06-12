@@ -84,6 +84,9 @@ st.title("DR リザルトシート自動生成ツール")
 st.write("教員用・学生用のExcelファイル（.xlsx）をアップロードして、PDFを生成します。")
 
 st.sidebar.header("設定")
+import datetime
+current_year = datetime.datetime.now().year
+fiscal_year = st.sidebar.text_input("年度", value=str(current_year), help="PDFタイトルに表示する年度を入力してください（例: 2024）")
 dr_version = st.sidebar.selectbox("DRバージョン", options=['DR1', 'DR2', 'FDR'], index=0,
                                    help="アップロードするデータに対応するDRバージョンを選択してください")
 
@@ -105,7 +108,7 @@ if teacher_file and student_file:
     if match_class:
         class_name = match_class.group(1)
         
-    pdf_title = f"2024年度 システム工学特別演習 {event_name}_{class_name}"
+    pdf_title = f"{fiscal_year}年度 システム工学特別演習 {event_name}_{class_name}"
     pdf_filename = f"{event_name}_{class_name}_ResultSheet.pdf"
     chart_title = f"{class_name} 総合評価"
     

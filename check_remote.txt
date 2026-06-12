@@ -1,0 +1,175 @@
+﻿from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+import io
+import os
+
+def register_fonts():
+    font_path = os.path.join(os.path.dirname(__file__), "..", "fonts", "ipaexg.ttf")
+    if os.path.exists(font_path):
+        try:
+            pdfmetrics.registerFont(TTFont('IPAexGothic', font_path))
+        except Exception as e:
+            print(f"ReportLab Font Error: {e}")
+
+def create_result_pdf(summary_df, overall_chart_bytes, group_details_list, pdf_title="2024蟷ｴ蠎ｦ 繧ｷ繧ｹ繝・Β蟾･蟄ｦ迚ｹ蛻･貍皮ｿ・繝ｪ繧ｶ繝ｫ繝医す繝ｼ繝・, q_descriptions=None) -> bytes:
+    """
+    繝・・繧ｿ繝輔Ξ繝ｼ繝繧・げ繝ｩ繝慕判蜒上ｒ蜿励￠蜿悶ｊ縲∬､・焚繝壹・繧ｸ縺ｮPDF繧堤函謌舌＠縺ｦ繝舌う繝亥・縺ｨ縺励※霑斐☆縲・    """
+    register_fonts()
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    
+    styles = getSampleStyleSheet()
+    # 譌･譛ｬ隱樒畑縺ｮ繧ｹ繧ｿ繧､繝ｫ螳夂ｾｩ
+    # 繝輔か繝ｳ繝亥錐縺悟ｭ伜惠縺励↑縺・腸蠅・・蝣ｴ蜷医・Helvetiga縺ｪ縺ｩ縺ｮ繝・ヵ繧ｩ繝ｫ繝医↓縺ｪ繧句庄閭ｽ諤ｧ縺後≠繧九′縲・    # 驕ｩ蛻・↓逋ｻ骭ｲ縺輔ｌ縺ｦ縺・ｌ縺ｰIPAexGothic縺碁←逕ｨ縺輔ｌ繧九・    styles.add(ParagraphStyle(name='Japanese', fontName='IPAexGothic', fontSize=10, leading=14))
+    styles.add(ParagraphStyle(name='TitleJp', fontName='IPAexGothic', fontSize=16, leading=20, alignment=1, spaceAfter=20))
+    styles.add(ParagraphStyle(name='Heading1Jp', fontName='IPAexGothic', fontSize=14, leading=18, spaceAfter=10, spaceBefore=20))
+    
+    story = []
+    
+    # -----------------------
+    # Page 1: 蜈ｨ菴薙し繝槭Μ繝ｼ
+    # -----------------------
+    story.append(Paragraph(pdf_title, styles['TitleJp']))
+    
+    # 蜈ｨ菴捺｣偵げ繝ｩ繝・    if overall_chart_bytes:
+        img1 = Image(io.BytesIO(overall_chart_bytes))
+        img1.drawHeight = 300
+        img1.drawWidth = 400
+        story.append(img1)
+        story.append(Spacer(1, 20))
+    
+    # 蜈ｨ菴薙し繝槭Μ繝ｼ縺ｮ繝・・繝悶Ν
+    table_data = [['Group', 'Student Score', 'Professor Score', 'Overall Score', 'Rank']]
+    for _, row in summary_df.iterrows():
+        table_data.append([
+            f"{row['Group ID']}. {row['Group Name']}",
+            f"{row['Student Score']:.2f}",
+            f"{row['Professor Score']:.2f}",
+            f"{row['Overall Score']:.2f}",
+            str(row['Rank'])
+        ])
+    
+    t1 = Table(table_data)
+    t1.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.grey),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+        ('FONTNAME', (0,0), (-1,-1), 'IPAexGothic'),
+        ('FONTSIZE', (0,0), (-1,-1), 10),
+        ('BOTTOMPADDING', (0,0), (-1,0), 6),
+        ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
+        ('GRID', (0,0), (-1,-1), 1, colors.black)
+    ]))
+    story.append(t1)
+    
+    
+    # -----------------------
+    # Page 2莉･髯・ 繧ｰ繝ｫ繝ｼ繝怜句挨
+    # -----------------------
+    for gdetail in group_details_list:
+        story.append(PageBreak())
+        
+        group_id = gdetail['group_id']
+        group_name = gdetail['group_name']
+        story.append(Paragraph(f"Group.{group_id} {group_name}", styles['Heading1Jp']))
+        
+        # 繧ｹ繧ｳ繧｢髮・ｨ郁｡ｨ
+        score_df = gdetail['score_df']
+        score_data = [['', 'Student', 'Professor', 'Point', 'Average']]
+        for idx, row in score_df.iterrows():
+            score_data.append([
+                str(idx),
+                str(row['Student']),
+                str(row['Professor']),
+                str(row['Point']),
+                str(row['Average'])
+            ])
+            
+        t_score = Table(score_data, colWidths=[60, 80, 80, 80, 80])
+        t_score.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.lightblue),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,-1), 'IPAexGothic'),
+            ('GRID', (0,0), (-1,-1), 1, colors.black)
+        ]))
+        story.append(t_score)
+        story.append(Spacer(1, 10))
+        
+        # 險ｭ蝠丞・螳ｹ縺ｮ荳隕ｧ繝・・繝悶Ν・域律譛ｬ隱槭・闍ｱ隱樔ｽｵ險假ｼ・        # q_descriptions 縺梧ｸ｡縺輔ｌ縺ｪ縺九▲縺溷ｴ蜷医・繝・ヵ繧ｩ繝ｫ繝茨ｼ・R1・・        if q_descriptions is None:
+            q_descriptions_list = [
+                ('Q1', '隱ｲ鬘後↓蟇ｾ縺吶ｋ隕∵ｱゅ・・後←縺ｮ繧医≧縺ｪ繧ゅ・縺後≠繧九・縺・閭梧勹縺ｨ逶ｮ逧・′譏守｢ｺ縺ｫ縺ｪ縺｣縺ｦ縺・ｋ縺・迴ｾ迥ｶ縺ｨ繝九・繧ｺ縺後＠縺｣縺九ｊ蛻・梵縺輔ｌ縺ｦ縺・ｋ縺・,
+                 'What are the requirements for the issue? -Are the background and objectives clear? -Are the current situation and needs thoroughly analyzed?'),
+                ('Q2', '縺昴・隕∵ｱゅｒ蜈ｷ菴灘喧縺吶ｋ縺溘ａ縺ｮ繧ｴ繝ｼ繝ｫ・育岼讓呻ｼ峨・縺ｩ縺ｮ繧医≧縺ｪ繧ゅ・縺・繧ｴ繝ｼ繝ｫ・育岼讓呻ｼ峨ｒ蜈ｷ菴灘喧縺吶ｋ縺溘ａ縺ｮ讖溯・縺ｯ譏守｢ｺ縺ｫ縺ｪ縺｣縺ｦ縺・ｋ縺・讖溯・繧貞ｮ溽樟縺吶ｋ縺溘ａ縺ｮ譁ｹ遲厄ｼ医い繧､繝・い繧・・菴鍋ｭ厄ｼ峨′霑ｰ縺ｹ繧峨ｌ縺ｦ縺・ｋ縺・,
+                 'What is the goal to make this requirement a reality? -Are the functions to materialize the goals clear? -Are measures (ideas and concrete measures) to realize the functions described?'),
+                ('Q3', '隕∵ｱゅ→逶ｮ讓呻ｼ医ざ繝ｼ繝ｫ・峨・・悟ｦ･蠖薙↑髢｢菫ゅ〒縺ゅｋ縺・, 'Is there a suitable relationship between requirements and goals?'),
+                ('Q4', '莠育ｮ苓ｨ育判縺ｮ蜀・ｨｳ縺ｯ驕ｩ蛻・↓逕ｳ隲九＆繧後※縺・ｋ縺・, 'Is the budget plan breakdown properly filed?'),
+                ('Q5', '譁・嶌縺ｧ縺ｮ蝣ｱ蜻・, 'Written report'),
+                ('Q6', '蜿｣鬆ｭ縺ｧ縺ｮ蝣ｱ蜻・, 'Oral report'),
+                ('Q7', '邱丞粋隧穂ｾ｡', 'Comprehensive evaluation'),
+            ]
+        else:
+            q_descriptions_list = q_descriptions
+        q_desc_style = ParagraphStyle(name='QDesc', fontName='IPAexGothic', fontSize=7, leading=9)
+        q_desc_en_style = ParagraphStyle(name='QDescEn', fontName='Helvetica', fontSize=6, leading=8, textColor=colors.Color(0.3, 0.3, 0.3))
+        q_label_style = ParagraphStyle(name='QLabel', fontName='IPAexGothic', fontSize=7, leading=9, alignment=1)
+        
+        q_desc_data = [[Paragraph('險ｭ蝠・, q_label_style), Paragraph('雉ｪ蝠丞・螳ｹ / Question', q_desc_style)]]
+        for q_key, q_ja, q_en in q_descriptions_list:
+            cell_content = Paragraph(f'{q_ja}<br/><font size="6" color="#555555"><i>{q_en}</i></font>', q_desc_style)
+            q_desc_data.append([
+                Paragraph(q_key, q_label_style),
+                cell_content
+            ])
+        
+        t_qdesc = Table(q_desc_data, colWidths=[35, 500])
+        t_qdesc.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.Color(0.85, 0.85, 0.95)),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('FONTNAME', (0,0), (-1,-1), 'IPAexGothic'),
+            ('FONTSIZE', (0,0), (-1,-1), 7),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+            ('TOPPADDING', (0,0), (-1,-1), 2),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+            ('LEFTPADDING', (0,0), (-1,-1), 4),
+            ('RIGHTPADDING', (0,0), (-1,-1), 4),
+        ]))
+        story.append(t_qdesc)
+        story.append(Spacer(1, 15))
+        
+        # 繝ｬ繝ｼ繝繝ｼ繝√Ε繝ｼ繝・        chart_bytes = gdetail['radar_chart_bytes']
+        if chart_bytes:
+            img_chart = Image(io.BytesIO(chart_bytes))
+            img_chart.drawHeight = 250
+            img_chart.drawWidth = 250
+            story.append(img_chart)
+            story.append(Spacer(1, 20))
+        
+        # 繧ｳ繝｡繝ｳ繝郁｡ｨ
+        comments = gdetail['comments']
+        comment_data = [['蜷榊燕', '繧ｳ繝｡繝ｳ繝・]]
+        # 繧ｻ繝ｫ蜀・〒謚倥ｊ霑斐☆縺溘ａ縺ｫParagraph縺ｧ繝ｩ繝・・
+        for cdict in comments:
+            name_p = Paragraph(str(cdict.get('name', '')), styles['Japanese'])
+            comment_p = Paragraph(str(cdict.get('comment', '')), styles['Japanese'])
+            comment_data.append([name_p, comment_p])
+            
+        if len(comment_data) > 1:
+            # colWidths繧定ｨｭ螳壹☆繧九％縺ｨ縺ｧ繝・く繧ｹ繝医′謚倥ｊ霑斐＆繧後ｋ
+            t_comments = Table(comment_data, colWidths=[80, 420])
+            t_comments.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.lightgreen),
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('FONTNAME', (0,0), (-1,-1), 'IPAexGothic'),
+                ('GRID', (0,0), (-1,-1), 1, colors.black),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 6)
+            ]))
+            story.append(t_comments)
+            
+    doc.build(story)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+    return pdf_bytes
