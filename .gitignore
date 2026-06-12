@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Test outputs
+test_output.pdf
+pdf_test_layout.md
+pdf_full_layout.md
+pdf_layout_preview.md
+
+# Sample data (don't upload to public repo)
+Sample_csv/
+Sample_PDF/
+
+# Other
+*.zip
+artifacts/
+data/
+inspect_sample.py
+test_run.py
+rule.md
